@@ -52,33 +52,28 @@ enum DocType {
 }
 
 model User {
-  id             String   @id @default(cuid())
-  email          String   @unique
-  passwordHash   String
-  role           Role     @default(STAFF)
-  isActive       Boolean  @default(true)
-  staffId        String?  @unique
-  staff          Staff?   @relation(fields: [staffId], references: [id])
-  refreshTokens  RefreshToken[]
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String
+  role         Role    @default(STAFF)
+  isActive     Boolean @default(true)
 
-model RefreshToken {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash   String
-  expiresAt   DateTime
-  revokedAt   DateTime?
-  createdAt   DateTime @default(now())
-  userAgent   String?
-  ip          String?
+  staffId String? @unique
+  staff   Staff?  @relation("UserStaff", fields: [staffId], references: [id])
+
+  refreshTokens RefreshToken[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Staff {
-  id                   String   @id @default(cuid())
-  idNo                 String   @unique
+  id String @id @default(cuid())
+
+  // Link staff profile to one user account (optional)
+  user User? @relation("UserStaff")
+
+  idNo                 String         @unique
   staffName            String
   currentArea          String
   currentPost          String
@@ -106,49 +101,71 @@ model Staff {
   professionalPhotoKey String?
   notes                String?
 
-  documents            Document[]
-  auditLogs            AuditLog[]
+  documents Document[]
+  auditLogs AuditLog[]
 
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RefreshToken {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tokenHash String
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+  userAgent String?
+  ip        String?
 }
 
 model Document {
-  id                 String   @id @default(cuid())
-  staffId            String
-  staff              Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  id String @id @default(cuid())
 
-  docType            DocType
-  customName         String?
-  issueDate          DateTime?
-  expiryDate         DateTime?
-  remainingDays      Int?
-  status             DocStatus?
+  staffId String
+  staff   Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  docType       DocType
+  customName    String?
+  issueDate     DateTime?
+  expiryDate    DateTime?
+  remainingDays Int?
+  status        DocStatus?
 
   verificationStatus VerificationStatus @default(PENDING)
   verifiedByUserId   String?
   verifiedAt         DateTime?
 
-  currentVersionId   String?
-  currentVersion     DocumentVersion? @relation("CurrentDocVersion", fields: [currentVersionId], references: [id])
+  // Current version pointer (one-to-one)
+  currentVersionId String?          @unique
+  currentVersion   DocumentVersion? @relation("CurrentDocVersion", fields: [currentVersionId], references: [id])
 
-  versions           DocumentVersion[]
+  // All versions (one-to-many)
+  versions DocumentVersion[] @relation("DocumentVersions")
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([staffId, docType])
 }
 
 model DocumentVersion {
-  id           String   @id @default(cuid())
-  documentId   String
-  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  id String @id @default(cuid())
 
-  fileKey      String
-  fileName     String
-  mimeType     String
-  sizeBytes    Int
+  documentId String
+  document   Document @relation("DocumentVersions", fields: [documentId], references: [id], onDelete: Cascade)
+
+  // Opposite side of Document.currentVersion
+  currentOf Document? @relation("CurrentDocVersion")
+
+  fileKey   String
+  fileName  String
+  mimeType  String
+  sizeBytes Int
+
   uploadedById String
   uploadedAt   DateTime @default(now())
 
@@ -156,17 +173,17 @@ model DocumentVersion {
 }
 
 model AuditLog {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   actorUserId String
   staffId     String?
   documentId  String?
 
-  action      String
-  field       String?
-  oldValue    String?
-  newValue    String?
+  action   String
+  field    String?
+  oldValue String?
+  newValue String?
 
-  createdAt   DateTime @default(now())
+  createdAt DateTime @default(now())
 
-  staff       Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  staff Staff? @relation(fields: [staffId], references: [id], onDelete: SetNull)
 }
