@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ContractStatus {
+  ACTIVE
+  EXPIRED
+  ENDING_SOON
+  SUSPENDED
+}
+
+enum DocStatus {
+  VALID
+  EXPIRING_SOON
+  URGENT
+  EXPIRED
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum DocType {
+  IQAMA
+  PASSPORT
+  MOH_LICENSE
+  CERTIFICATE_OF_GRADUATION
+  DATA_FLOW
+  SCFHS
+  BLS
+  ACLS
+  CONSCIOUS_SEDATION
+  OTHERS
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  passwordHash   String
+  role           Role     @default(STAFF)
+  isActive       Boolean  @default(true)
+  staffId        String?  @unique
+  staff          Staff?   @relation(fields: [staffId], references: [id])
+  refreshTokens  RefreshToken[]
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model RefreshToken {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+  userAgent   String?
+  ip          String?
+}
+
+model Staff {
+  id                   String   @id @default(cuid())
+  idNo                 String   @unique
+  staffName            String
+  currentArea          String
+  currentPost          String
+  gender               Gender
+  birthday             DateTime
+  nationality          String
+  joiningDate          DateTime
+  contractExpire       DateTime
+  contractStatus       ContractStatus
+  contractType         String
+  iqamaNo              String?
+  passportNo           String?
+  degree               String?
+  speciality           String?
+  saudiCouncil         String?
+  classification       String?
+  dataFlow             String?
+  moh                  String?
+  bls                  String?
+  acls                 String?
+  cSedation            String?
+  mobileNo             String
+  personalEmail        String
+  careEmail            String
+  professionalPhotoKey String?
+  notes                String?
+
+  documents            Document[]
+  auditLogs            AuditLog[]
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model Document {
+  id                 String   @id @default(cuid())
+  staffId            String
+  staff              Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  docType            DocType
+  customName         String?
+  issueDate          DateTime?
+  expiryDate         DateTime?
+  remainingDays      Int?
+  status             DocStatus?
+
+  verificationStatus VerificationStatus @default(PENDING)
+  verifiedByUserId   String?
+  verifiedAt         DateTime?
+
+  currentVersionId   String?
+  currentVersion     DocumentVersion? @relation("CurrentDocVersion", fields: [currentVersionId], references: [id])
+
+  versions           DocumentVersion[]
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([staffId, docType])
+}
+
+model DocumentVersion {
+  id           String   @id @default(cuid())
+  documentId   String
+  document     Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  fileKey      String
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  uploadedById String
+  uploadedAt   DateTime @default(now())
+
+  @@index([documentId, uploadedAt])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String
+  staffId     String?
+  documentId  String?
+
+  action      String
+  field       String?
+  oldValue    String?
+  newValue    String?
+
+  createdAt   DateTime @default(now())
+
+  staff       Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
+}
