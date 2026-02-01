@@ -4,9 +4,10 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")   // Supabase TRANSACTION POOLER
-  directUrl = env("DIRECT_URL")     // Supabase DIRECT connection (migrations)
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
+
 
 
 enum Role {
